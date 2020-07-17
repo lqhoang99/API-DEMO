@@ -8,5 +8,5 @@ import (
 func TodoRoute(g *echo.Group) {
 	//Creat
 	g.POST("/Create", controllers.CreateTodo)
-	
+	g.PATCH("/:id/Completed", controllers.Complete)
 }

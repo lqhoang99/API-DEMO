@@ -29,4 +29,18 @@ func CreateTodo(c echo.Context) error {
 	return c.JSON(http.StatusCreated, res.InsertedID)
 }
 
+//Complete func
+func Complete(c echo.Context) error {
+	db := database.Connectdb()
+	collection := db.Collection("todos")
+	id := c.Param("id")
+	objectId, _ := primitive.ObjectIDFromHex(id)
+	filter := bson.M{"_id": objectId}
+	update := bson.M{"$set": bson.M{"completed": true}}
 
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return c.JSON(http.StatusOK, updateResult)
+}
