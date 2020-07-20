@@ -8,8 +8,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var DB *mongo.Database
+
 //Connectdb ...
-func Connectdb() *mongo.Database{
+func Connectdb(dbName string) *mongo.Database {
 	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
 		fmt.Println(err)
@@ -20,7 +23,8 @@ func Connectdb() *mongo.Database{
 	if err != nil {
 		fmt.Println(err)
 	}
-	db := client.Database("todos-list")
-	return db
+	DB = client.Database(dbName)
 
+	fmt.Println("Connected to db:", dbName)
+	return DB
 }
