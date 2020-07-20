@@ -21,6 +21,6 @@ func Connectdb() *mongo.Database{
 		fmt.Println(err)
 	}
 	db := client.Database("todos-list")
-	//collection := db.Collection("todos")
 	return db
+
 }
