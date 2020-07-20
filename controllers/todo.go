@@ -19,8 +19,7 @@ import (
 // }
 //CreateTodo func
 func CreateTodo(c echo.Context) error {
-	db := database.Connectdb()
-	collection := db.Collection("todos")
+	collection := database.DB.Collection("todos")
 	todo := new(models.Todo)
 	c.Bind(todo)
 	todo.ID = primitive.NewObjectID()
@@ -34,8 +33,7 @@ func CreateTodo(c echo.Context) error {
 
 //Complete func
 func Complete(c echo.Context) error {
-	db := database.Connectdb()
-	collection := db.Collection("todos")
+	collection := database.DB.Collection("todos")
 	id := c.Param("id")
 	objectID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objectID}
@@ -49,8 +47,7 @@ func Complete(c echo.Context) error {
 
 //GetList func
 func GetList(c echo.Context) error {
-	db := database.Connectdb()
-	collection := db.Collection("todos")
+	collection := database.DB.Collection("todos")
 	cursor, err := collection.Find(context.TODO(), bson.M{})
 	if err != nil {
 		log.Fatal(err)
@@ -70,8 +67,7 @@ func GetList(c echo.Context) error {
 
 // Delete func
 func Delete(c echo.Context) error {
-	db := database.Connectdb()
-	collection := db.Collection("todos")
+	collection := database.DB.Collection("todos")
 	id := c.Param("id")
 	objectID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objectID}
@@ -85,8 +81,7 @@ func Delete(c echo.Context) error {
 
 //Update func
 func Update(c echo.Context) error {
-	db := database.Connectdb()
-	collection := db.Collection("todos")
+	collection := database.DB.Collection("todos")
 	id := c.Param("id")
 	todo := new(models.Todo)
 	c.Bind(todo)
