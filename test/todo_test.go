@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
@@ -19,32 +22,33 @@ import (
 	"RestAPI/models"
 )
 
-type CreateTodoSuite struct {
+type TodoSuite struct {
 	suite.Suite
 	Todos []models.Todo
 }
 
-func (s CreateTodoSuite) SetupSuite()  {
+func (s TodoSuite) SetupSuite() {
 	database.Connectdb("todo-test")
-
 	removeOldData()
+	addRecord()// for test Completed
 }
 
-func (s CreateTodoSuite) TearDownSuite() {
-	removeOldData()
+func (s TodoSuite) TearDownSuite() {
+	//removeOldData()
 }
 
-func removeOldData()  {
+func removeOldData() {
 	database.DB.Collection("todos").DeleteMany(context.Background(), bson.M{})
 }
 
-func (s *CreateTodoSuite) TestCreateTodo() {
+//Test TestCreateTodo
+func (s *TodoSuite) TestCreateTodo() {
 
 	e := echo.New()
 
 	todo := models.Todo{
 		Title: "title 1",
-		Desc: "aab",
+		Desc:  "aab",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/todos", ToIOReader(todo))
 
@@ -62,18 +66,7 @@ func (s *CreateTodoSuite) TestCreateTodo() {
 	assert.Equal(s.T(), res.Title, todo.Title)
 	assert.Equal(s.T(), res.Desc, todo.Desc)
 
-	// ctx := context.Background()
-	// cursor, err := database.DB.Collection("todos").Find(ctx, bson.M{})
-	// if err != nil {
-	// 	panic("query err")
-	// }
-	//
-	// var todos []models.Todo
-	//
-	// defer cursor.Close(ctx)
-	// cursor.All(ctx, &todos)
-	//
-	// assert.Equal(s.T(), len(todos), 1)
+
 }
 
 func ToIOReader(i interface{}) io.Reader {
@@ -81,7 +74,39 @@ func ToIOReader(i interface{}) io.Reader {
 	return bytes.NewReader(b)
 }
 
-func TestCreateTodoSuite(t *testing.T)  {
-	suite.Run(t, new(CreateTodoSuite))
+// Test Completed
+var id = primitive.NewObjectID()
+func addRecord() {
+	todo := models.Todo{
+		ID:        id,
+		Title:     "title 2",
+		Desc:      "desc 2",
+		Completed: false,
+	}
+	database.DB.Collection("todos").InsertOne(context.TODO(), todo)
+}
+func (s *TodoSuite) TestComplete() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/todos/:id/completed", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(id.Hex())
+
+	controllers.Complete(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+ 	var res models.ResBody
+	json.Unmarshal([]byte(rec.Body.String()), &res)
+
+	assert.Equal(s.T(), res.MatchedCount,1)
+	assert.Equal(s.T(), res.ModifiedCount,1)
+	assert.Equal(s.T(), res.UpsertedCount,0)
+	assert.Equal(s.T(), res.UpsertedID,nil)
 }
 
+// Test 
+
+func TestTodoSuite(t *testing.T) {
+	suite.Run(t, new(TodoSuite))
+}

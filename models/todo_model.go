@@ -9,3 +9,9 @@ type Todo struct {
 	Desc      string             `bson:"desc" json:"desc"`
 	Completed bool               `bson:"completed" json:"completed"`
 }
+type ResBody struct {
+	MatchedCount int 			`bson:"MatchedCount" json:"MatchedCount"`
+	ModifiedCount int			`bson:"ModifiedCount" json:"ModifiedCount"`
+	UpsertedCount int           `bson:"UpsertedCount" json:"UpsertedCount"`
+	UpsertedID interface{}      `bson:"UpsertedID" json:"UpsertedID"`
+}
