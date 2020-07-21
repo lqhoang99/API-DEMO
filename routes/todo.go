@@ -17,8 +17,8 @@ func TodoRoute(g *echo.Group) {
 	// /todos
 	g.GET("", controllers.GetList)
 
+	g.PUT("/:id", controllers.Update)
 	//
 	g.DELETE("/:id", controllers.Delete)
 
-	g.PUT("/:id", controllers.Update)
 }

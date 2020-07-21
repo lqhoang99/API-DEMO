@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
@@ -19,32 +22,40 @@ import (
 	"RestAPI/models"
 )
 
-type CreateTodoSuite struct {
+type TodoSuite struct {
 	suite.Suite
 	Todos []models.Todo
+	
 }
-
-func (s CreateTodoSuite) SetupSuite()  {
+var idCompleted = primitive.NewObjectID()
+var idUpdate = primitive.NewObjectID()
+var idDelete = primitive.NewObjectID()
+func (s TodoSuite) SetupSuite() {
+	
 	database.Connectdb("todo-test")
-
 	removeOldData()
+	addRecord(idCompleted) // for test Completed
+	addRecord(idUpdate) // for test Update
+	addRecord(idDelete) // for test Delete
+
 }
 
-func (s CreateTodoSuite) TearDownSuite() {
-	removeOldData()
+func (s TodoSuite) TearDownSuite() {
+	//removeOldData()
 }
 
-func removeOldData()  {
+func removeOldData() {
 	database.DB.Collection("todos").DeleteMany(context.Background(), bson.M{})
 }
 
-func (s *CreateTodoSuite) TestCreateTodo() {
+//Test TestCreateTodo
+func (s *TodoSuite) TestCreateTodo() {
 
 	e := echo.New()
 
 	todo := models.Todo{
 		Title: "title 1",
-		Desc: "aab",
+		Desc:  "aab",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/todos", ToIOReader(todo))
 
@@ -61,19 +72,8 @@ func (s *CreateTodoSuite) TestCreateTodo() {
 
 	assert.Equal(s.T(), res.Title, todo.Title)
 	assert.Equal(s.T(), res.Desc, todo.Desc)
+	assert.Equal(s.T(), res.Completed, todo.Completed)
 
-	// ctx := context.Background()
-	// cursor, err := database.DB.Collection("todos").Find(ctx, bson.M{})
-	// if err != nil {
-	// 	panic("query err")
-	// }
-	//
-	// var todos []models.Todo
-	//
-	// defer cursor.Close(ctx)
-	// cursor.All(ctx, &todos)
-	//
-	// assert.Equal(s.T(), len(todos), 1)
 }
 
 func ToIOReader(i interface{}) io.Reader {
@@ -81,7 +81,131 @@ func ToIOReader(i interface{}) io.Reader {
 	return bytes.NewReader(b)
 }
 
-func TestCreateTodoSuite(t *testing.T)  {
-	suite.Run(t, new(CreateTodoSuite))
+// Test Completed
+
+func addRecord(id primitive.ObjectID) {
+	todo := models.Todo{
+		ID:        id,
+		Title:     "title 2",
+		Desc:      "desc 2",
+		Completed: false,
+	}
+	database.DB.Collection("todos").InsertOne(context.TODO(), todo)
 }
 
+func (s *TodoSuite) TestComplete() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPatch, "/todos/:id/completed", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(idCompleted.Hex())
+
+	controllers.Complete(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+	res:= struct {
+		MatchedCount int 			`bson:"MatchedCount" json:"MatchedCount"`
+		ModifiedCount int			`bson:"ModifiedCount" json:"ModifiedCount"`
+		UpsertedCount int           `bson:"UpsertedCount" json:"UpsertedCount"`
+		UpsertedID interface{}      `bson:"UpsertedID" json:"UpsertedID"`
+	}{
+
+	}
+	json.Unmarshal([]byte(rec.Body.String()), &res)
+
+	assert.Equal(s.T(), res.MatchedCount, 1)
+	assert.Equal(s.T(), res.ModifiedCount, 1)
+	assert.Equal(s.T(), res.UpsertedCount, 0)
+	assert.Equal(s.T(), res.UpsertedID, nil)
+}
+
+// Test GetList
+
+func (s *TodoSuite) TestGetList() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/todos", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	controllers.GetList(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+
+	ctx := context.Background()
+	cursor, err := database.DB.Collection("todos").Find(ctx, bson.M{})
+	if err != nil {
+		panic("query err")
+	}
+
+	var todos []models.Todo
+	defer cursor.Close(ctx)
+	cursor.All(ctx, &todos)
+
+	var res []models.Todo
+	json.Unmarshal(rec.Body.Bytes(), &res)
+	assert.Equal(s.T(), todos, res)
+
+}
+//Test Update
+
+func (s *TodoSuite) TestUpdate() {
+
+	e := echo.New()
+	todo := models.Todo{
+		Title: "hoangdeptrai",
+		Desc:  "qua dep trai",
+		Completed:false,
+	}
+	req := httptest.NewRequest(http.MethodPut, "/todos/:id", ToIOReader(todo))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(idUpdate.Hex())
+
+	controllers.Update(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+	res:= struct {
+		MatchedCount int 			`bson:"MatchedCount" json:"MatchedCount"`
+		ModifiedCount int			`bson:"ModifiedCount" json:"ModifiedCount"`
+		UpsertedCount int           `bson:"UpsertedCount" json:"UpsertedCount"`
+		UpsertedID interface{}      `bson:"UpsertedID" json:"UpsertedID"`
+	}{
+
+	}
+	json.Unmarshal([]byte(rec.Body.String()), &res)
+
+	assert.Equal(s.T(), res.MatchedCount, 1)
+	assert.Equal(s.T(), res.ModifiedCount, 1)
+	assert.Equal(s.T(), res.UpsertedCount, 0)
+	assert.Equal(s.T(), res.UpsertedID, nil)
+
+}
+
+//Test Delete
+func (s *TodoSuite) TestDelete() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/todos/:id", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(idDelete.Hex())
+
+	controllers.Delete(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+	x :=struct{
+		DeletedCount int	`bson:"DeletedCount" json:"DeletedCount"`
+	}{
+
+	}
+	json.Unmarshal([]byte(rec.Body.String()), &x)
+	assert.Equal(s.T(), x.DeletedCount, 1)
+
+}
+
+
+func TestTodoSuite(t *testing.T) {
+	suite.Run(t, new(TodoSuite))
+}

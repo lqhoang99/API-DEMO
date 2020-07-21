@@ -14,20 +14,16 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// type Handler struct {
-// 	db map[string]*models.Todo
-// }
 //CreateTodo func
 func CreateTodo(c echo.Context) error {
 	collection := database.DB.Collection("todos")
 	todo := new(models.Todo)
 	c.Bind(todo)
 	todo.ID = primitive.NewObjectID()
-	res, err := collection.InsertOne(context.TODO(), todo)
+	_, err := collection.InsertOne(context.TODO(), todo)
 	if err != nil {
 		fmt.Println(err)
 	}
-	log.Println(res)
 	return c.JSON(http.StatusCreated, todo)
 }
 
@@ -64,6 +60,27 @@ func GetList(c echo.Context) error {
 	cursor.Close(context.TODO())
 	return c.JSON(http.StatusOK, results)
 }
+//Update func
+func Update(c echo.Context) error {
+	collection := database.DB.Collection("todos")
+	id := c.Param("id")
+	todo := new(models.Todo)
+	c.Bind(todo)
+	
+	objectID, _ := primitive.ObjectIDFromHex(id)
+	filter := bson.M{"_id": objectID}
+	update := bson.M{"$set": bson.M{
+		"title":     todo.Title,
+		"desc":      todo.Desc,
+		"completed": todo.Completed,
+	}}
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return c.JSON(http.StatusOK, updateResult)
+}
+
 
 // Delete func
 func Delete(c echo.Context) error {
@@ -79,23 +96,3 @@ func Delete(c echo.Context) error {
 	return c.JSON(http.StatusOK, deleteResult)
 }
 
-//Update func
-func Update(c echo.Context) error {
-	collection := database.DB.Collection("todos")
-	id := c.Param("id")
-	todo := new(models.Todo)
-	c.Bind(todo)
-
-	objectID, _ := primitive.ObjectIDFromHex(id)
-	filter := bson.M{"_id": objectID}
-	update := bson.M{"$set": bson.M{
-		"title":     todo.Title,
-		"desc":      todo.Desc,
-		"completed": todo.Completed,
-	}}
-	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return c.JSON(http.StatusOK, updateResult)
-}

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	database.Connectdb("todos")
+	database.Connectdb("todos-list")
 }
 
 func main() {
