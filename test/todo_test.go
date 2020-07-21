@@ -25,12 +25,19 @@ import (
 type TodoSuite struct {
 	suite.Suite
 	Todos []models.Todo
+	
 }
-
+var idCompleted = primitive.NewObjectID()
+var idUpdate = primitive.NewObjectID()
+var idDelete = primitive.NewObjectID()
 func (s TodoSuite) SetupSuite() {
+	
 	database.Connectdb("todo-test")
 	removeOldData()
-	addRecord()// for test Completed
+	addRecord(idCompleted) // for test Completed
+	addRecord(idUpdate) // for test Update
+	addRecord(idDelete) // for test Delete
+
 }
 
 func (s TodoSuite) TearDownSuite() {
@@ -65,7 +72,7 @@ func (s *TodoSuite) TestCreateTodo() {
 
 	assert.Equal(s.T(), res.Title, todo.Title)
 	assert.Equal(s.T(), res.Desc, todo.Desc)
-
+	assert.Equal(s.T(), res.Completed, todo.Completed)
 
 }
 
@@ -75,8 +82,8 @@ func ToIOReader(i interface{}) io.Reader {
 }
 
 // Test Completed
-var id = primitive.NewObjectID()
-func addRecord() {
+
+func addRecord(id primitive.ObjectID) {
 	todo := models.Todo{
 		ID:        id,
 		Title:     "title 2",
@@ -85,6 +92,7 @@ func addRecord() {
 	}
 	database.DB.Collection("todos").InsertOne(context.TODO(), todo)
 }
+
 func (s *TodoSuite) TestComplete() {
 
 	e := echo.New()
@@ -92,20 +100,111 @@ func (s *TodoSuite) TestComplete() {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("id")
-	c.SetParamValues(id.Hex())
+	c.SetParamValues(idCompleted.Hex())
 
 	controllers.Complete(c)
 	assert.Equal(s.T(), http.StatusOK, rec.Code)
- 	var res models.ResBody
+	res:= struct {
+		MatchedCount int 			`bson:"MatchedCount" json:"MatchedCount"`
+		ModifiedCount int			`bson:"ModifiedCount" json:"ModifiedCount"`
+		UpsertedCount int           `bson:"UpsertedCount" json:"UpsertedCount"`
+		UpsertedID interface{}      `bson:"UpsertedID" json:"UpsertedID"`
+	}{
+
+	}
 	json.Unmarshal([]byte(rec.Body.String()), &res)
 
-	assert.Equal(s.T(), res.MatchedCount,1)
-	assert.Equal(s.T(), res.ModifiedCount,1)
-	assert.Equal(s.T(), res.UpsertedCount,0)
-	assert.Equal(s.T(), res.UpsertedID,nil)
+	assert.Equal(s.T(), res.MatchedCount, 1)
+	assert.Equal(s.T(), res.ModifiedCount, 1)
+	assert.Equal(s.T(), res.UpsertedCount, 0)
+	assert.Equal(s.T(), res.UpsertedID, nil)
 }
 
-// Test 
+// Test GetList
+
+func (s *TodoSuite) TestGetList() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/todos", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	controllers.GetList(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+
+	ctx := context.Background()
+	cursor, err := database.DB.Collection("todos").Find(ctx, bson.M{})
+	if err != nil {
+		panic("query err")
+	}
+
+	var todos []models.Todo
+	defer cursor.Close(ctx)
+	cursor.All(ctx, &todos)
+
+	var res []models.Todo
+	json.Unmarshal(rec.Body.Bytes(), &res)
+	assert.Equal(s.T(), todos, res)
+
+}
+//Test Update
+
+func (s *TodoSuite) TestUpdate() {
+
+	e := echo.New()
+	todo := models.Todo{
+		Title: "hoangdeptrai",
+		Desc:  "qua dep trai",
+		Completed:false,
+	}
+	req := httptest.NewRequest(http.MethodPut, "/todos/:id", ToIOReader(todo))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(idUpdate.Hex())
+
+	controllers.Update(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+	res:= struct {
+		MatchedCount int 			`bson:"MatchedCount" json:"MatchedCount"`
+		ModifiedCount int			`bson:"ModifiedCount" json:"ModifiedCount"`
+		UpsertedCount int           `bson:"UpsertedCount" json:"UpsertedCount"`
+		UpsertedID interface{}      `bson:"UpsertedID" json:"UpsertedID"`
+	}{
+
+	}
+	json.Unmarshal([]byte(rec.Body.String()), &res)
+
+	assert.Equal(s.T(), res.MatchedCount, 1)
+	assert.Equal(s.T(), res.ModifiedCount, 1)
+	assert.Equal(s.T(), res.UpsertedCount, 0)
+	assert.Equal(s.T(), res.UpsertedID, nil)
+
+}
+
+//Test Delete
+func (s *TodoSuite) TestDelete() {
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/todos/:id", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(idDelete.Hex())
+
+	controllers.Delete(c)
+	assert.Equal(s.T(), http.StatusOK, rec.Code)
+	x :=struct{
+		DeletedCount int	`bson:"DeletedCount" json:"DeletedCount"`
+	}{
+
+	}
+	json.Unmarshal([]byte(rec.Body.String()), &x)
+	assert.Equal(s.T(), x.DeletedCount, 1)
+
+}
+
 
 func TestTodoSuite(t *testing.T) {
 	suite.Run(t, new(TodoSuite))
