@@ -31,8 +31,8 @@ var idCompleted = primitive.NewObjectID()
 var idUpdate = primitive.NewObjectID()
 var idDelete = primitive.NewObjectID()
 func (s TodoSuite) SetupSuite() {
-	
-	database.Connectdb("todo-test")
+	url:=database.GetValueFromZoo("/mongodb")
+	database.Connectdb(url,"todo-test")
 	removeOldData()
 	addRecord(idCompleted) // for test Completed
 	addRecord(idUpdate) // for test Update
@@ -58,7 +58,7 @@ func (s *TodoSuite) TestCreateTodo() {
 		Desc:  "aab",
 	}
 	req := httptest.NewRequest(http.MethodPost, "/todos", ToIOReader(todo))
-
+	
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)

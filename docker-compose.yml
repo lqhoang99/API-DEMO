@@ -1,0 +1,34 @@
+version: '3'
+services:
+    web:
+        depends_on: 
+            - zoo
+            - mongodb
+        build: .
+        ports:
+            - "3000:3000"
+        networks: 
+            - mongo-go
+    mongodb:
+        image: mongo
+        container_name: db
+        restart: always
+        volumes:
+            - mongodata:/data/db
+        networks: 
+            - mongo-go
+        ports:
+            - '27100:27017'
+    zoo:
+        image: zookeeper
+        container_name: zookeeper
+        restart: always
+        hostname: zoo1
+        ports:
+            - 2181:2181
+        networks: 
+            - mongo-go   
+volumes: 
+    mongodata:
+networks: 
+    mongo-go:
