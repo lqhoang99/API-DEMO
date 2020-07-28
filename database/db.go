@@ -15,7 +15,7 @@ var Zoo *zk.Conn
 
 //ConnectZookeeper ...
 func ConnectZookeeper() {
-	c, _, err := zk.Connect([]string{"127.0.0.1"}, time.Second) 
+	c, _, err := zk.Connect([]string{"zookeeper:2181"}, time.Second) 
 	if err != nil {
 		panic(err)
 	}
@@ -27,8 +27,8 @@ func GetValueFromZoo(path string) string{
 	return string(res)
 }
 //Connectdb ...
-func Connectdb(url string,dbName string) *mongo.Database {
-	client, err := mongo.NewClient(options.Client().ApplyURI(url))
+func Connectdb(dbName string) *mongo.Database {
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://db:27017"))
 	if err != nil {
 		fmt.Println(err)
 	}
