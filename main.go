@@ -8,8 +8,9 @@ import (
 
 func init() {
 	database.ConnectZookeeper()
-	url:=database.GetValueFromZoo("/mongodb")
-	database.Connectdb(url,"todos-list")
+	//url:=database.GetValueFromZoo("/mongodb")
+	//database.Connectdb(url,"todos-list")
+	database.Connectdb("todos-list")
 }
 
 func main() {
